@@ -5,9 +5,9 @@ import variables
 from utils import init_logger
 import logging
 from agent import takeAction
+import sys 
 
 ws = ""
-player_name = variables.player_name
 
 def doListen():
     try:
@@ -16,7 +16,9 @@ def doListen():
         ws.send(json.dumps({
             "eventName": "join",
             "data": {
-                "playerName": player_name
+                "playerName": variables.player_name,
+                "playerNumber": variables.player_number, 
+                "token": variables.token
             }
         }))
         while True:
@@ -29,7 +31,17 @@ def doListen():
 
 
 if __name__ == '__main__':
+
+
     init_logger()
+
+    if len(sys.argv) == 5:
+         variables.player_name=sys.argv[1]
+         variables.player_number=sys.argv[2]
+         variables.token=sys.argv[3]
+         variables.url=sys.argv[4]
+
+    logging.debug('player_name:{} player_number:{} token:{} url:{}'.format(variables.player_name,variables.player_number,variables.token,variables.url))
     try:
         doListen()
     except KeyboardInterrupt:
