@@ -35,6 +35,7 @@ if __name__ == '__main__':
 
     init_logger()
 
+    logging.debug('arg:{} len:{}'.format(sys.argv,len(sys.argv)))
     if len(sys.argv) == 5:
          variables.player_name=sys.argv[1]
          variables.player_number=sys.argv[2]
