@@ -16,7 +16,8 @@ def init_logger():
     formatter = logging.Formatter(formatter_str, '%Y-%m-%d %H:%M:%S')
     
     logger.setLevel(debug_maping.get("debug"))
-    handler = logging.FileHandler(os.path.join(sys.path[0],'debug.log'))
+    # handler = logging.FileHandler(os.path.join(sys.path[0],'debug.log'))
+    handler = logging.FileHandler(os.path.join('/','log','debug.log'))
     handler.setFormatter(formatter)
 
     for item in logger.handlers:
