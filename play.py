@@ -6,6 +6,7 @@ from utils import init_logger
 import logging
 from agent import takeAction
 import sys 
+import traceback
 
 ws = ""
 
@@ -27,6 +28,7 @@ def doListen():
             takeAction(ws, msg)
     except Exception as e:
         logging.error(e)
+        logging.error(traceback.format_exc())
         doListen()
 
 
