@@ -42,7 +42,7 @@ GAME_STATUS = {
     "roundPlayer": ""
 }
 
-MY_NAME = variables.player_name
+# MY_NAME = variables.player_name
 PLAYER = AdvancedPlayer()
 
 def takeAction(ws, msg):
@@ -96,7 +96,7 @@ def do_pass_cards(ws, data):
     set_data_for_game(data, fields_game = fields_game)
     event_name = "pass_my_cards"
     logging.debug("--- {0} ---".format(event_name))
-    cards = GAME_STATUS["players"][MY_NAME]["cards"]
+    cards = GAME_STATUS["players"][variables.player_name]["cards"]
     hand = [str_to_card(card) for card in cards]
     cards_to_pass = PLAYER.pass_cards(hand)
     result = [str(card) for card in cards_to_pass]
@@ -197,5 +197,5 @@ def set_data_for_game(data, fields_game = [], fields_all = [], fields_self = [])
             set_data(player, player_local, fields_all)
     if fields_self:
         player_self = data["self"]
-        player_self_local = GAME_STATUS["players"][MY_NAME]
+        player_self_local = GAME_STATUS["players"][variables.player_name]
         set_data(player_self, player_self_local, fields_self)
