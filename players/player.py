@@ -1,7 +1,7 @@
 """This module containts the abstract class Player and some implementations."""
 from random import shuffle
 from card import Suit, Rank, Card, Deck
-from rules import is_card_valid
+from rules import is_card_valid, cards_with_suit, get_largest_rank_with_smallest_length
 
 
 class Player:
@@ -23,36 +23,31 @@ class Player:
         self.index = index
 
     def expose(self):
-        return True
+        return False
 
     def pass_cards(self, hand):
         """Must return a list of three cards from the given hand."""
         hand_copy = hand[:]
         cards_to_pass = []
         for _ in range(3):
-            spades_in_hand = [card for card in hand_copy if card.suit == Suit.spades]
+            spades_in_hand = cards_with_suit(Suit.spades, hand_copy)
+            clubs_in_hand = cards_with_suit(Suit.clubs, hand_copy)
             if len(spades_in_hand) < 6 and Card(Suit.spades, Rank.queen) in spades_in_hand:
                 card_to_pass = Card(Suit.spades, Rank.queen)
             elif len(spades_in_hand) < 6 and Card(Suit.spades, Rank.ace) in spades_in_hand:
                 card_to_pass = Card(Suit.spades, Rank.ace)
             elif len(spades_in_hand) < 6 and Card(Suit.spades, Rank.king) in spades_in_hand:
                 card_to_pass = Card(Suit.spades, Rank.king)
+            elif len(clubs_in_hand) < 6 and Card(Suit.clubs, Rank.ten) in clubs_in_hand:
+                card_to_pass = Card(Suit.clubs, Rank.ten)
             else:
-                other_suits_in_hand = [self.cards_with_suit(Suit.clubs, hand_copy), 
-                                       self.cards_with_suit(Suit.diamonds, hand_copy),
-                                       self.cards_with_suit(Suit.hearts, hand_copy)]
-                other_suits_in_hand.sort(key=len, reverse=True)
-                other_suits_in_hand_flatten = [card for cards in other_suits_in_hand for card in cards]
-                other_suits_in_hand_flatten.sort(key=lambda card: card.rank.value)
-                card_to_pass = other_suits_in_hand_flatten[-1]
+                card_to_pass = get_largest_rank_with_smallest_length(hand_copy, [Suit.clubs, Suit.diamonds, Suit.hearts])
             cards_to_pass.append(card_to_pass)
             hand_copy.remove(card_to_pass)
         return cards_to_pass
     
-    def cards_with_suit(self, suit, cards):
-        return [card for card in cards if card.suit == suit]
 
-    def play_card(self, valid_cards, trick, are_hearts_broken, is_spade_queen_played):
+    def play_card(self, valid_cards, trick, out_of_suits, remaining_players, are_hearts_broken, is_spade_queen_played):
         """
         Must return a card from the given hand.
         trick is a list of cards played so far.
@@ -62,6 +57,3 @@ class Player:
         """
         return NotImplemented
 
-    def all_valid_cards(self, hand, trick, trick_nr, are_hearts_broken):
-        return [card for card in hand
-                       if is_card_valid(hand, trick, card, trick_nr, are_hearts_broken)]

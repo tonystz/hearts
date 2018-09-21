@@ -36,10 +36,10 @@ def card_point(card, exposed = False):
     if card == Card(Suit.spades, Rank.queen):
         return -13
     if card.suit == Suit.hearts:
-        return (-2 if exposed else -1)
+        return -2 if exposed else -1
     return 0
 
-def is_last_trick(trick):
+def is_last_turn(trick):
     return len(trick) == 3
 
 def count_points(cards_taken, exposed):
@@ -73,3 +73,49 @@ def is_spade_queen_played(cards):
     Return True if the spade queen is played yet, otherwise return False.
     """
     return Card(Suit.spades, Rank.queen) in cards
+
+def cards_with_suit(suit, cards):
+    return [card for card in cards if card.suit == suit]
+    
+def all_valid_cards(hand, trick, trick_nr, are_hearts_broken):
+    return [card for card in hand
+                    if is_card_valid(hand, trick, card, trick_nr, are_hearts_broken)]
+
+def secondary_choice_needed(decision, cards):
+    return decision in [Card(Suit.spades, Rank.queen), Card(Suit.clubs, Rank.ten)] and len(cards) > 1
+
+def contains_unwanted_cards(cards):
+    return (len(cards_with_suit(Suit.hearts, cards)) > 0) or (Card(Suit.spades, Rank.queen) in cards) or (Card(Suit.clubs, Rank.ten) in cards)
+
+def get_largest_rank_with_smallest_length(cards, suits = "all"):
+    if suits == "all":
+        suits = [Suit.clubs, Suit.diamonds, Suit.spades, Suit.hearts]
+    cards_for_suit = [cards_with_suit(suit, cards) for suit in suits]
+    cards_for_suit.sort(key=len, reverse=True)
+    cards_for_suit_flatten = [card for cards in cards_for_suit for card in cards]
+    cards_for_suit_flatten.sort(key=lambda card: card.rank.value)
+    return cards_for_suit_flatten[-1]
+
+def str_to_card(s):
+    str_to_suit = {
+        "C": Suit.clubs,
+        "D": Suit.diamonds,
+        "S": Suit.spades,
+        "H": Suit.hearts
+    }
+    str_to_rank = {
+        "2": Rank.two,
+        "3": Rank.three,
+        "4": Rank.four,
+        "5": Rank.five,
+        "6": Rank.six,
+        "7": Rank.seven,
+        "8": Rank.eight,
+        "9": Rank.nine,
+        "T": Rank.ten,
+        "J": Rank.jack,
+        "Q": Rank.queen,
+        "K": Rank.king,
+        "A": Rank.ace
+    }
+    return Card(str_to_suit[s[1]], str_to_rank[s[0]])

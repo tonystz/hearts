@@ -1,11 +1,14 @@
 import json
-from utils import set_data, str_to_card
+from utils import set_data
 import logging
 from copy import deepcopy
 import variables
 from players.advanced_player import AdvancedPlayer
 from players.montecarlo_player import MonteCarloPlayer
-from rules import are_hearts_broken, is_spade_queen_played
+from rules import str_to_card
+from card import Suit, Rank, Card
+from game import Game
+import datetime
 
 PLAYER_STATUS = {
     "playerNumber": 0,
@@ -35,15 +38,18 @@ GAME_STATUS = {
     "roundPlayers": [],
     "turnPlayer": "",
     "turnCard": "",
+    "roundPlayer": "",
     "cards_played": (),
     "are_hearts_broken": False,
     "is_spade_queen_played": False,
     "trick": [],
-    "roundPlayer": ""
+    "out_of_suits": {},
+    "cards_taken": ([], [], [], [])
 }
 
 # MY_NAME = variables.player_name
 PLAYER = AdvancedPlayer()
+NAME_TO_NUMBER = {}
 
 def takeAction(ws, msg):
     event_name = msg["eventName"]
@@ -89,7 +95,17 @@ def set_new_deal(data):
     fields_game = ["dealNumber"]
     fields_all = ["playerNumber", "playerName", "gameScore", "dealScore", "cardsCount", "receivedFrom", "exposedCards", "shootingTheMoon", "roundCard"]
     fields_self = ["scoreCards", "cards", "pickedCards", "receivedCards", "candidateCards"]
+    i = 0
+    for player in data["players"]:
+        playerName = player["playerName"]
+        GAME_STATUS["out_of_suits"][playerName] = {Suit.clubs: False, Suit.diamonds: False, Suit.spades: False, Suit.hearts: False}
+        NAME_TO_NUMBER[playerName] = i
+        i += 1
     set_data_for_game(data, fields_game = fields_game, fields_all = fields_all, fields_self = fields_self)
+    GAME_STATUS["cards_played"] = ()
+    GAME_STATUS["are_hearts_broken"] = False
+    GAME_STATUS["is_spade_queen_played"] = False
+    GAME_STATUS["cards_taken"] = ([], [], [], [])
 
 def do_pass_cards(ws, data):
     fields_game = ["receiver"]
@@ -150,10 +166,16 @@ def set_turn_end(data):
     logging.debug("Turn card: {0}".format(data["turnCard"]))
     GAME_STATUS["cards_played"] += (turnCard, )
     GAME_STATUS["trick"].append(turnCard)
-    GAME_STATUS["are_hearts_broken"] = GAME_STATUS["are_hearts_broken"] or are_hearts_broken(GAME_STATUS["cards_played"])
-    GAME_STATUS["is_spade_queen_played"] = GAME_STATUS["is_spade_queen_played"] or is_spade_queen_played(GAME_STATUS["cards_played"])
+    if not GAME_STATUS["are_hearts_broken"] and turnCard.suit == Suit.hearts:
+        GAME_STATUS["are_hearts_broken"] = True
+    if not GAME_STATUS["is_spade_queen_played"] and turnCard == Card(Suit.spades, Rank.queen):
+        GAME_STATUS["is_spade_queen_played"] = True
+    leading_suit = GAME_STATUS["trick"][0].suit
+    if not GAME_STATUS["out_of_suits"][GAME_STATUS["turnPlayer"]][leading_suit] and str_to_card(GAME_STATUS["turnCard"]).suit != leading_suit:
+        GAME_STATUS["out_of_suits"][GAME_STATUS["turnPlayer"]][leading_suit] = True
 
 def do_play_card(ws, data):
+    begin = datetime.datetime.utcnow()
     fields_self = ["cards", "candidateCards"]
     set_data_for_game(data, fields_self = fields_self)
     candidateCards = [str_to_card(card) for card in data["self"]["candidateCards"]]
@@ -162,7 +184,24 @@ def do_play_card(ws, data):
     logging.debug("--- {0} ---".format(event_name))
     logging.debug("Candidate cards: {0}".format(candidateCards))
     logging.debug("Trick: {0}".format(GAME_STATUS["trick"]))
-    decision = PLAYER.play_card(candidateCards, GAME_STATUS["trick"], GAME_STATUS["are_hearts_broken"], GAME_STATUS["is_spade_queen_played"])
+    remaining_players = GAME_STATUS["roundPlayers"][((GAME_STATUS["roundPlayers"].index(variables.player_name) + 1) % 4):]
+    if variables.montecarlo:
+        game = Game()
+        player_hands = [[], [], [], []]
+        current_player_index = NAME_TO_NUMBER[variables.player_name]
+        my_hand = [str_to_card(card) for card in GAME_STATUS["players"][variables.player_name]["cards"]]
+        player_hands[current_player_index] = my_hand
+        round_players = [NAME_TO_NUMBER[player] for player in GAME_STATUS["roundPlayers"]]
+        game.set_attributes(GAME_STATUS["trick"], player_hands, GAME_STATUS["cards_played"], GAME_STATUS["are_hearts_broken"], GAME_STATUS["is_spade_queen_played"], current_player_index, NAME_TO_NUMBER[GAME_STATUS["roundPlayers"][0]], GAME_STATUS["cards_taken"], round_players, GAME_STATUS["roundNumber"] - 1)
+        cards_count = {}
+        for key, value in GAME_STATUS["players"].items():
+            if key != variables.player_name:
+                cards_count[NAME_TO_NUMBER[key]] = value["cardsCount"]
+        PLAYER = MonteCarloPlayer()
+        PLAYER.setAttributes(game, cards_count, my_hand)
+    else:
+        PLAYER = AdvancedPlayer()
+    decision = PLAYER.play_card(candidateCards, GAME_STATUS["trick"], GAME_STATUS["out_of_suits"], remaining_players, GAME_STATUS["are_hearts_broken"], GAME_STATUS["is_spade_queen_played"])
     result = str(decision)
     ws.send(json.dumps({
         "eventName": event_name,
@@ -173,11 +212,13 @@ def do_play_card(ws, data):
         }
     }))
     logging.debug("Pick: {0}".format(result))
+    logging.debug('Decision Time: {0}'.format(datetime.datetime.utcnow() - begin))
 
 def set_round_end(data):
     fields_game = ["roundPlayer"]
     fields_all = ["dealScore"]
     set_data_for_game(data, fields_game = fields_game, fields_all = fields_all)
+    GAME_STATUS["cards_taken"][NAME_TO_NUMBER[GAME_STATUS["roundPlayer"]]].extend(GAME_STATUS["trick"])
 
 def set_deal_end(data):
     fields_all = ["gameScore", "scoreCards", "cards", "shootingTheMoon"]
