@@ -9,3 +9,6 @@ url = "ws://127.0.0.1:8081"
 player_name = "JPAT"
 player_number = "063"
 token="1111115"
+
+#test sweep ai
+xxx
